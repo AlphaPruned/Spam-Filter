@@ -1,111 +1,132 @@
-# import the required libraries
-import csv
-from collections import Counter
+import csv #importing required libraries
 import re
+from collections import Counter
 
-sms = []            # sms list store whether the message is spam or not
-message = []          # message store the message of both spam and not spam
-s_spam = []
-s_nonspam = []          
-with open("./sms.csv", 'r') as file:
-  csvreader = csv.reader(file, delimiter="\t")
-  for row in csvreader:
-    sms.append(row[0])
-    message.append(row[1])
+spam_word={} #dictionary for storing spam words and their frequency counts
+n_spam_word={} #dictionary for storing non-spam words and their frequency counts
 
-ns = []
-s1 = ''  # string of all strings with nonspam messages together
-s2 = ''    # string of all strings with spam messages together
-a = len(sms)
-b = len(message)
-# making two different lists s_nonspam and s_spam having string as element of messages of nonspam and spam resp.
-for i in range(a):
-    if sms[i] == 'notspam':
-        s_nonspam.append(message[i])
-        ns.append(i)
-    else:
-        s_spam.append(message[i])
-        
-for j in range(len(s_nonspam)):
-    s1 = s1 + ' ' + s_nonspam[j]
-
-for j in range(len(s_spam)):
-    s2 = s2 + ' ' + s_spam[j]
+with open('sms.csv',newline='') as data_file: #opening the sms csv file as datafile
+    data_set=list(csv.reader(data_file,delimiter='\t')) #setting the readin procedure to data_set as a list of rows
     
-# removing all the exclamotory signs and numeric values
-s1 = re.sub(r'[^\w\s]',"",s1)
-s2 = re.sub(r'[^\w\s]',"",s2)
-s1 = re.sub(r'[0-9]',"",s1)
-s2 = re.sub(r'[0-9]',"",s2)
+    for row in data_set: #loop running for each row of the csv file
+       
+        words=row[1] #message is stored in words
 
-# making all the elements in lowercase
-s1 = s1.lower()
-s2 = s2.lower()
-# print(s1)
-s1 = s1.split()          #nonspam
-s2 = s2.split()          #spam
+        words=re.sub(r'[0-9]'," ",words) #number are removed from words
+        words=re.sub(r'[()*.!-+/:;@$%?<=>Â£,~`€_Éˆ¥Â”¾Ã‰Â»™]'," ",words) #symbolic characters are removed from words
+        words=re.sub(r'[-]',' ',words)
+        words=words.upper() #whole string is capitalized
+        words=words.split() #all words are splitted and stored in a list
+        
+        if(row[-1]==''): #'removing any '' character
+            row.pop()
+            
+        if(row[0]=='spam'): #if spam then the word and frequency counts gets updated in spam_word dictionary
+            for char in words:
+                if char not in spam_word:
+                    spam_word[char]=1
+                else:
+                    spam_word[char]+=1
+                    
+        elif(row[0]=='notspam'): #if non-spam then the word and frequency counts gets updated in n_spam_word dictionary
+            for char in words:
+                if char not in n_spam_word:
+                    n_spam_word[char]=1
+                else:
+                    n_spam_word[char]+=1
 
-s1new = []
-s2new = []
-# list that need to remove
-to_rmv = ['and','a','â','the','at','by','for','down','from','in','into','near','of','off','on','to','upon','with','As','as','The','And','A','&','or','2','is','I','i','it','4','me','my','but','your','if','so','are','we','not','&lt;#&gt;','we','do','can','be','ur','im','will','ltgt','i','m','no','its','ok','go','up','u']
+    
+    #list of words to be not considered 
+    rmv=['M','P','U','I','S','A','AND','THE','TO','IN','IS','OF','FOR','ON','FROM','WITH','OR','AT','ARE','BY','OFF','DOWN','NEAR','ON','UPON','AS','INTO','IS','IT','SO','DO','T']
+    for c in rmv: #for loop for removing the words in the above list
+        
+        if c in list(n_spam_word.keys()): #removing the words from n_spam_word list
+            del n_spam_word[c]
+            
+        if c in list(spam_word.keys()): #removing the words from spam_word list
+            del spam_word[c]
+    
+#     #new1 is basically spam_word dictionary in an order sorted according to decreasing value of frequency counts of words
+#     new1=dict(sorted(spam_word.items(), key=lambda item: item[1],reverse=True))
+#     #new2 is basically n_spam_word dictionary in an order sorted according to decreasing value of frequency counts of words
+#     new2=dict(sorted(n_spam_word.items(), key=lambda item: item[1],reverse=True))
+    
+#     print('Top ten spam words') #printing the top ten spam words
+#     for i in range(10):
+#         print(list(new1.keys())[i],':',new1[list(new1.keys())[i]])
+    
+#     print('\nTop ten non-spam words') #printing the top ten non-spam words
+#     for k in range(10):
+#         print(list(new2.keys())[k],':',new2[list(new2.keys())[k]])
 
-for word in s1:
-    if word in to_rmv:
-        continue
-    else:
-        s1new.append(word)
-for word in s2:
-    if word in to_rmv:
-        continue
-    else:
-        s2new.append(word)
+f_total= sum(list(n_spam_word.values())+list(spam_word.values())) #total number of words
 
-counts = Counter(s1new)
-counts_spam = Counter(s2new)
-def find_prob(word):
-    total_words = len(s1new) + len(s2new)
-    s_new = s1new + s2new
-    w = word
-        # p1 for given non-spam
-    if counts[w] != 0:
-        p1 = (counts[w]/len(s1new))
-    else:
-        p1 = 1/len(s_new)
-        #p2 for spam
-    if counts_spam[w] != 0:
-        p2 = (counts_spam[w]/len(s2new))
-    else:
-        p2 = 1/len(s_new)
-    return p1,p2
+def spam_prob(W): #function declaration for conditional probability of a word given it is spam
+    
+    global f_total #f_total as a global variable
+    num1=0
+    total1=sum(list(spam_word.values())) #total number of words in spam list
+    
+    if(W in list(spam_word.keys())): #counting the total instances of the word in spam list
+        num1+=spam_word[W]
 
-m = input()           # taking input of the message
-m = re.sub(r'[^\w\s]',"",m)
-m = re.sub(r'[0-9]',"",m)
-m = m.lower()
-li = m.split()
-linew = []
-for word in li:
-    if word in to_rmv:
-        continue
-    else:
-        linew.append(word)
+    if(num1!=0): #calculating the conditional probability given a spam message
+        prob=num1/total1 
+        
+    else: #if the total instances of the word is 0
+        prob=1/f_total
+    
+    return prob #returning the conditional probability
 
-pm_spam = 1    # pm_spam means probability of m given spam
-for word in linew:
-    p = find_prob(word)
-    pm_spam = pm_spam*p[1]
-p_spam = len(s2new)
-pspam_m = pm_spam*p_spam     # probability of m given spam
+def non_spam_prob(W): #function declaration for conditional probability of a word given it is non-spam
+    
+    global f_total #f_total as a global variable
+    num2=0
+    total2=sum(list(n_spam_word.values())) #total number of words in non-spam list
+    
+    if(W in list(n_spam_word.keys())): #counting the total instances of the word in non-spam list
+        num2+=n_spam_word[W]
+    
+    if(num2!=0): #calculating the conditional probability given a non-spam message
+        prob=num2/total2
+        
+    else: #if the total instances of the word is 0
+        prob=1/f_total
+    
+    return prob #returning the conditional probability
 
-pm_nonspam = 1
-for word in linew:
-    p = find_prob(word)
-    pm_nonspam = pm_nonspam*p[0]
-p_nonspam = len(s1new)
-pnonspam_m = pm_nonspam*p_nonspam         #probability of m given nonspam
+def classifier(M): #function declaration for a classifier which checks if a message is spam or not 
+    
+    global p_spam #p(spam) as a global variable
+    global p_non_spam #p(non-spam) as a global variable
+    
+    tp_spam=1 #total probability of a message being spam given some message
+    tp_non_spam=1 #total probability of a message being non-spam given some message
+    
+    M=re.sub(r'[0-9]'," ",M) #number are removed from words
+    M=re.sub(r'[()*.!-+/:;@$%?<=>Â£,~`€_Éˆ¥Â”¾Ã‰Â»™]'," ",M) #symbolic characters are removed from words
+    M=re.sub(r'[-]',' ',M)
+    M=M.upper()
+    M=M.split()
+    
+    for ch in M: #loop for finding conditional probability for a message given either spam or non-spam
+        tp_spam*=spam_prob(ch)
+        tp_non_spam*=non_spam_prob(ch)
+    
+    tp_spam*=p_spam #finding the total probability of a message being spam given some message
+    tp_non_spam*=p_non_spam #finding the total probability of a message being non-spam given some message
+    
+    if(tp_spam>=tp_non_spam): #checks if the message being spam is more likely than non-spam
+        return True
+    #if the message being non-spam is more likely than spam
+    return False
 
-if pspam_m > pnonspam_m:
-    print("The given message fall into Spam")
+M=input('Enter the message: ') #message M as input
+
+p_spam=(sum(list(spam_word.values())))/f_total #calculating p(spam)
+p_non_spam=(sum(list(n_spam_word.values())))/f_total #calculating p(non-spam)
+
+if(classifier(M)): #call to classifier function for message M
+    print('m is spam')
 else:
-    print("The given message fall into NonSpam")
+    print('m is not a spam') 
