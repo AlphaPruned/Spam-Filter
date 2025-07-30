@@ -5,7 +5,7 @@ from collections import Counter
 spam_word={} #dictionary for storing spam words and their frequency counts
 n_spam_word={} #dictionary for storing non-spam words and their frequency counts
 
-with open('sms.csv',newline='') as data_file: #opening the sms csv file as datafile
+with open('SMS_list.csv',newline='') as data_file: #opening the sms csv file as datafile
     data_set=list(csv.reader(data_file,delimiter='\t')) #setting the readin procedure to data_set as a list of rows
     
     for row in data_set: #loop running for each row of the csv file
